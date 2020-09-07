@@ -2,33 +2,61 @@
   <v-app>
     <v-navigation-drawer
       v-model="drawer"
-      :mini-variant="miniVariant"
-      :clipped="true"
-      fixed
+      :clipped="$vuetify.breakpoint.lgAndUp"
       app
       color="indigo lighten-5"
+      width="280"
     >
-      <v-list>
-        <v-list-item
-          v-for="(item, i) in items"
-          :key="i"
-          :to="item.to"
-          router
-          exact
-        >
-          <v-list-item-action>
-            <v-icon>{{ item.icon }}</v-icon>
-          </v-list-item-action>
-          <v-list-item-content>
-            <v-list-item-title v-text="item.title" />
-          </v-list-item-content>
-        </v-list-item>
+      <v-list dense>
+        <template v-for="item in items">
+          <v-list-group v-if="item.children" :key="item.title">
+            <template v-slot:activator>
+              <v-list-item-action>
+                <v-icon>{{ item.icon }}</v-icon>
+              </v-list-item-action>
+              <v-list-item-content>
+                <v-list-item-title>
+                  {{ item.title }}
+                </v-list-item-title>
+              </v-list-item-content>
+            </template>
+            <v-list-item
+              v-for="(child, i) in item.children"
+              :key="i"
+              :to="child.to"
+            >
+              <v-list-item-action>
+                <v-icon>{{ child.icon }}</v-icon>
+              </v-list-item-action>
+              <v-list-item-content>
+                <v-list-item-title>
+                  {{ child.title }}
+                </v-list-item-title>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list-group>
+
+          <v-list-item v-else :key="item.title" :to="item.to" router exact>
+            <v-list-item-action>
+              <v-icon>{{ item.icon }}</v-icon>
+            </v-list-item-action>
+            <v-list-item-content>
+              <v-list-item-title v-text="item.title" />
+            </v-list-item-content>
+          </v-list-item>
+        </template>
       </v-list>
     </v-navigation-drawer>
-    <v-app-bar dark :clipped-left="clipped" fixed app color="#253b7f">
-      <v-btn icon @click.stop="miniVariant = !miniVariant">
+    <v-app-bar
+      dark
+      :clipped-left="$vuetify.breakpoint.lgAndUp"
+      app
+      color="#253b7f"
+    >
+      <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
+      <!-- <v-btn icon @click.stop="miniVariant = !miniVariant">
         <v-icon>mdi-{{ `chevron-${miniVariant ? 'right' : 'left'}` }}</v-icon>
-      </v-btn>
+      </v-btn> -->
       <v-toolbar-side-icon>
         <v-img :src="require('@/assets/img/logo.png')" width="50" height="50" />
       </v-toolbar-side-icon>
@@ -67,9 +95,7 @@
 export default {
   data() {
     return {
-      clipped: true,
-      drawer: false,
-      fixed: false,
+      drawer: null,
       items: [
         {
           icon: 'mdi-apps',
@@ -77,18 +103,22 @@ export default {
           to: '/',
         },
         {
-          icon: 'mdi-chart-bubble',
+          icon: 'mdi-chart-line',
           title: 'Đánh giá danh hiệu',
-          to: '/inspire',
+          children: [
+            {
+              icon: 'mdi-upload',
+              title: 'Tải file excel',
+              to: '/inspire',
+            },
+          ],
         },
         {
-          icon: 'mdi-chart-bubble',
+          icon: 'mdi-chart-bar',
           title: 'Thống kê danh hiệu',
           to: '/inspire',
         },
       ],
-      miniVariant: false,
-      right: true,
       title: 'Xét Khen Thưởng',
     }
   },
