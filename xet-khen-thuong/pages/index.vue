@@ -1,246 +1,143 @@
 <template>
-  <v-row class="fill-height">
-    <v-col>
-      <v-sheet height="600">
-        <v-calendar
-          ref="calendar"
-          v-model="value"
-          color="primary"
-          type="4day"
-          :events="events"
-          :event-color="getEventColor"
-          :event-ripple="false"
-          @change="getEvents"
-          @mousedown:event="startDrag"
-          @mousedown:time="startTime"
-          @mousemove:time="mouseMove"
-          @mouseup:time="endDrag"
-          @mouseleave.native="cancelDrag"
+  <div @drop="_drop" @dragenter="_suppress" @dragover="_suppress">
+    <div class="row">
+      <div class="col-xs-12">
+        <form class="form-inline">
+          <div class="form-group">
+            <label for="file">Spreadsheet</label>
+            <input
+              id="file"
+              type="file"
+              class="form-control"
+              :accept="SheetJSFT"
+              @change="_change"
+            />
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-xs-12">
+        <button
+          :disabled="data.length ? false : true"
+          class="btn btn-success"
+          @click="_export"
         >
-          <template #event="{ event, timed, eventSummary }">
-            <div class="v-event-draggable" v-html="eventSummary()"></div>
-            <div
-              v-if="timed"
-              class="v-event-drag-bottom"
-              @mousedown.stop="extendBottom(event)"
-            ></div>
-          </template>
-        </v-calendar>
-      </v-sheet>
-    </v-col>
-  </v-row>
+          Export
+        </button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-xs-12">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th v-for="c in cols" :key="c.key">{{ c.name }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(r, key) in data" :key="key">
+                <td v-for="c in cols" :key="c.key">{{ r[c.key] }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
+import XLSX from 'xlsx'
+// eslint-disable-next-line camelcase
+const make_cols = (refstr) =>
+  Array(XLSX.utils.decode_range(refstr).e.c + 1)
+    .fill(0)
+    .map((x, i) => ({ name: XLSX.utils.encode_col(i), key: i }))
+const _SheetJSFT = [
+  'xlsx',
+  'xlsb',
+  'xlsm',
+  'xls',
+  'xml',
+  'csv',
+  'txt',
+  'ods',
+  'fods',
+  'uos',
+  'sylk',
+  'dif',
+  'dbf',
+  'prn',
+  'qpw',
+  '123',
+  'wb*',
+  'wq*',
+  'html',
+  'htm',
+]
+  .map(function (x) {
+    return '.' + x
+  })
+  .join(',')
 export default {
-  data: () => ({
-    value: '',
-    events: [],
-    colors: [
-      '#2196F3',
-      '#3F51B5',
-      '#673AB7',
-      '#00BCD4',
-      '#4CAF50',
-      '#FF9800',
-      '#757575',
-    ],
-    names: [
-      'Meeting',
-      'Holiday',
-      'PTO',
-      'Travel',
-      'Event',
-      'Birthday',
-      'Conference',
-      'Party',
-    ],
-    dragEvent: null,
-    dragStart: null,
-    createEvent: null,
-    createStart: null,
-    extendOriginal: null,
-  }),
+  data() {
+    return {
+      data: ['SheetJS'.split(''), '1234567'.split('')],
+      cols: [
+        { name: 'A', key: 0 },
+        { name: 'B', key: 1 },
+        { name: 'C', key: 2 },
+        { name: 'D', key: 3 },
+        { name: 'E', key: 4 },
+        { name: 'F', key: 5 },
+        { name: 'G', key: 6 },
+      ],
+      SheetJSFT: _SheetJSFT,
+    }
+  },
   methods: {
-    startDrag({ event, timed }) {
-      if (event && timed) {
-        this.dragEvent = event
-        this.dragTime = null
-        this.extendOriginal = null
+    _suppress(evt) {
+      evt.stopPropagation()
+      evt.preventDefault()
+    },
+    _drop(evt) {
+      evt.stopPropagation()
+      evt.preventDefault()
+      const files = evt.dataTransfer.files
+      if (files && files[0]) this._file(files[0])
+    },
+    _change(evt) {
+      const files = evt.target.files
+      if (files && files[0]) this._file(files[0])
+    },
+    _export(evt) {
+      /* convert state to workbook */
+      const ws = XLSX.utils.aoa_to_sheet(this.data)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'SheetJS')
+      /* generate file and send to client */
+      XLSX.writeFile(wb, 'sheetjs.xlsx')
+    },
+    _file(file) {
+      /* Boilerplate to set up FileReader */
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        /* Parse data */
+        const bstr = e.target.result
+        const wb = XLSX.read(bstr, { type: 'binary' })
+        /* Get first worksheet */
+        const wsname = wb.SheetNames[0]
+        const ws = wb.Sheets[wsname]
+        /* Convert array of arrays */
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 })
+        /* Update state */
+        this.data = data
+        this.cols = make_cols(ws['!ref'])
       }
-    },
-    startTime(tms) {
-      const mouse = this.toTime(tms)
-
-      if (this.dragEvent && this.dragTime === null) {
-        const start = this.dragEvent.start
-
-        this.dragTime = mouse - start
-      } else {
-        this.createStart = this.roundTime(mouse)
-        this.createEvent = {
-          name: `Event #${this.events.length}`,
-          color: this.rndElement(this.colors),
-          start: this.createStart,
-          end: this.createStart,
-          timed: true,
-        }
-
-        this.events.push(this.createEvent)
-      }
-    },
-    extendBottom(event) {
-      this.createEvent = event
-      this.createStart = event.start
-      this.extendOriginal = event.end
-    },
-    mouseMove(tms) {
-      const mouse = this.toTime(tms)
-
-      if (this.dragEvent && this.dragTime !== null) {
-        const start = this.dragEvent.start
-        const end = this.dragEvent.end
-        const duration = end - start
-        const newStartTime = mouse - this.dragTime
-        const newStart = this.roundTime(newStartTime)
-        const newEnd = newStart + duration
-
-        this.dragEvent.start = newStart
-        this.dragEvent.end = newEnd
-      } else if (this.createEvent && this.createStart !== null) {
-        const mouseRounded = this.roundTime(mouse, false)
-        const min = Math.min(mouseRounded, this.createStart)
-        const max = Math.max(mouseRounded, this.createStart)
-
-        this.createEvent.start = min
-        this.createEvent.end = max
-      }
-    },
-    endDrag() {
-      this.dragTime = null
-      this.dragEvent = null
-      this.createEvent = null
-      this.createStart = null
-      this.extendOriginal = null
-    },
-    cancelDrag() {
-      if (this.createEvent) {
-        if (this.extendOriginal) {
-          this.createEvent.end = this.extendOriginal
-        } else {
-          const i = this.events.indexOf(this.createEvent)
-          if (i !== -1) {
-            this.events.splice(i, 1)
-          }
-        }
-      }
-
-      this.createEvent = null
-      this.createStart = null
-      this.dragTime = null
-      this.dragEvent = null
-    },
-    roundTime(time, down = true) {
-      const roundTo = 15 // minutes
-      const roundDownTime = roundTo * 60 * 1000
-
-      return down
-        ? time - (time % roundDownTime)
-        : time + (roundDownTime - (time % roundDownTime))
-    },
-    toTime(tms) {
-      return new Date(
-        tms.year,
-        tms.month - 1,
-        tms.day,
-        tms.hour,
-        tms.minute
-      ).getTime()
-    },
-    getEventColor(event) {
-      const rgb = parseInt(event.color.substring(1), 16)
-      // eslint-disable-next-line prettier/prettier
-      const r = (rgb >> 16) & 0xFF
-      // eslint-disable-next-line prettier/prettier
-      const g = (rgb >> 8) & 0xFF
-      // eslint-disable-next-line prettier/prettier
-      const b = (rgb >> 0) & 0xFF
-
-      return event === this.dragEvent
-        ? `rgba(${r}, ${g}, ${b}, 0.7)`
-        : event === this.createEvent
-        ? `rgba(${r}, ${g}, ${b}, 0.7)`
-        : event.color
-    },
-    getEvents({ start, end }) {
-      const events = []
-
-      const min = new Date(`${start.date}T00:00:00`).getTime()
-      const max = new Date(`${end.date}T23:59:59`).getTime()
-      const days = (max - min) / 86400000
-      const eventCount = this.rnd(days, days + 20)
-
-      for (let i = 0; i < eventCount; i++) {
-        const timed = this.rnd(0, 3) !== 0
-        const firstTimestamp = this.rnd(min, max)
-        const secondTimestamp = this.rnd(2, timed ? 8 : 288) * 900000
-        const start = firstTimestamp - (firstTimestamp % 900000)
-        const end = start + secondTimestamp
-
-        events.push({
-          name: this.rndElement(this.names),
-          color: this.rndElement(this.colors),
-          start,
-          end,
-          timed,
-        })
-      }
-
-      this.events = events
-    },
-    rnd(a, b) {
-      return Math.floor((b - a + 1) * Math.random()) + a
-    },
-    rndElement(arr) {
-      return arr[this.rnd(0, arr.length - 1)]
+      reader.readAsBinaryString(file)
     },
   },
 }
 </script>
-
-<style scoped lang="scss">
-.v-event-draggable {
-  padding-left: 6px;
-}
-
-.v-event-timed {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.v-event-drag-bottom {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 4px;
-  height: 4px;
-  cursor: ns-resize;
-
-  &::after {
-    display: none;
-    position: absolute;
-    left: 50%;
-    height: 4px;
-    border-top: 1px solid white;
-    border-bottom: 1px solid white;
-    width: 16px;
-    margin-left: -8px;
-    opacity: 0.8;
-    content: '';
-  }
-
-  &:hover::after {
-    display: block;
-  }
-}
-</style>
