@@ -109,7 +109,7 @@ export default {
             {
               icon: 'mdi-upload',
               title: 'Tải file excel',
-              to: '/inspire',
+              to: '/index2',
             },
           ],
         },

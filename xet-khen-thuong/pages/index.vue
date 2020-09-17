@@ -110,6 +110,7 @@ export default {
     },
     _change(evt) {
       const files = evt.target.files
+      console.log(files)
       if (files && files[0]) this._file(files[0])
     },
     _export(evt) {
@@ -129,6 +130,8 @@ export default {
         const wb = XLSX.read(bstr, { type: 'binary' })
         /* Get first worksheet */
         const wsname = wb.SheetNames[0]
+        const sheets = wb.SheetNames
+        console.log(sheets)
         const ws = wb.Sheets[wsname]
         /* Convert array of arrays */
         const data = XLSX.utils.sheet_to_json(ws, { header: 1 })
